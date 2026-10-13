@@ -1,10 +1,9 @@
-name: Build and publish Tailnet Gateway
+name: Build and publish service images
 
 on:
   push:
     branches: [main]
     tags: ["v*", "!v*-*"]
-  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -12,12 +11,36 @@ permissions:
   packages: write
 
 concurrency:
-  group: tailnet-gateway-${{ github.ref }}
+  group: agent-services-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   image:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: image
+            local_image: tailnet-gateway
+            title: Tailnet Gateway
+            images: |
+              ghcr.io/rogernavelsaker/tailnet-gateway
+              ghcr.io/rogernavelsaker/ts-caddy-gateway
+              ghcr.io/rogernavelsaker/agent-services-gateway
+          - package: engram-image
+            local_image: agent-services-engram
+            title: Engram Cloud
+            images: ghcr.io/rogernavelsaker/agent-services-engram
+          - package: headroom-image
+            local_image: agent-services-headroom
+            title: Headroom Proxy
+            images: ghcr.io/rogernavelsaker/agent-services-headroom
+          - package: caveman-image
+            local_image: agent-services-caveman
+            title: Caveman Proxy
+            images: ghcr.io/rogernavelsaker/agent-services-caveman
+
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -30,25 +53,30 @@ jobs:
           extra_nix_config: |
             experimental-features = nix-command flakes
 
-      - name: Build image and entrypoint
+      - name: Build image
+        env:
+          PACKAGE: ${{ matrix.package }}
+        run: nix build ".#$PACKAGE" --out-link /tmp/agent-service-image
+
+      - name: Validate gateway entrypoint
+        if: matrix.package == 'image'
         run: |
           nix build .#entrypoint --out-link /tmp/tailnet-gateway-entrypoint
-          nix build .#image --out-link /tmp/tailnet-gateway-image
           bash -n /tmp/tailnet-gateway-entrypoint/bin/entrypoint.sh
 
       - name: Load and inspect image
+        env:
+          LOCAL_IMAGE: ${{ matrix.local_image }}
+          IMAGE_TITLE: ${{ matrix.title }}
         run: |
-          docker load --input /tmp/tailnet-gateway-image
-          test "$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.title" }}' tailnet-gateway:latest)" = "Tailnet Gateway"
-          docker image inspect --format '{{ json .Config.ExposedPorts }}' tailnet-gateway:latest
+          docker load --input /tmp/agent-service-image
+          test "$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.title" }}' "$LOCAL_IMAGE:latest")" = "$IMAGE_TITLE"
 
       - name: Generate image tags
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: |
-            ghcr.io/rogernavelsaker/tailnet-gateway
-            ghcr.io/rogernavelsaker/ts-caddy-gateway
+          images: ${{ matrix.images }}
           tags: |
             type=ref,event=branch
             type=ref,event=tag
@@ -58,7 +86,6 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Log in to GHCR
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -66,12 +93,12 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish image tags
-        if: github.event_name != 'pull_request'
         env:
+          LOCAL_IMAGE: ${{ matrix.local_image }}
           TAGS: ${{ steps.meta.outputs.tags }}
         run: |
           while IFS= read -r tag; do
             [ -n "$tag" ] || continue
-            docker tag tailnet-gateway:latest "$tag"
+            docker tag "$LOCAL_IMAGE:latest" "$tag"
             docker push "$tag"
           done <<< "$TAGS"

@@ -30,5 +30,6 @@ jobs:
       - name: Check Flake
         run: nix flake check --accept-flake-config
 
-      - name: Build Default Package
-        run: nix build .#default --accept-flake-config --no-link
+      - name: Build all container images
+        if: github.event_name != 'push'
+        run: nix build .#image .#engram-image .#headroom-image .#caveman-image --accept-flake-config --no-link
