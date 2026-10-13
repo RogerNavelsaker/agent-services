@@ -117,6 +117,7 @@ let
       uvicorn
       orjson
       httpx
+      h2
       openai
       mcp
       magika
@@ -127,6 +128,25 @@ let
       watchdog
       sqlite-vec
     ];
+    makeWrapperArgs = [
+      "--prefix"
+      "PYTHONPATH"
+      ":"
+      "${placeholder "out"}/${python.sitePackages}:${py.makePythonPath finalAttrs.propagatedBuildInputs}"
+    ];
+    postInstall = ''
+      cat > "$out/bin/headroom-child-python-check" <<'PY'
+      #!${python}/bin/python
+      import subprocess
+      import sys
+      subprocess.run([sys.executable, "-c", "import h2; import headroom.cli"], check=True)
+      PY
+      chmod +x "$out/bin/headroom-child-python-check"
+    '';
+    postFixup = ''
+      env -u PYTHONPATH "$out/bin/headroom-child-python-check"
+      rm "$out/bin/headroom-child-python-check"
+    '';
     nativeCheckInputs = [ py.pytestCheckHook ];
     pytestFlags = [ "${../tests/test_headroom_caveman_safeguard.py}" ];
     pythonImportsCheck = [
