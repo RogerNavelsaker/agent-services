@@ -134,7 +134,10 @@
           caddy = caddyWithCloudflare;
           tailscale = pkgs.tailscale;
           image = baseImage;
-        } // serviceImages.packages // serviceImages.images;
+        } // serviceImages.packages // serviceImages.images
+          // pkgs.lib.optionalAttrs (system == "x86_64-linux") {
+            caveman-cli = pkgs.callPackage ./nix/caveman-cli.nix { };
+          };
 
         apps = {
           default = {

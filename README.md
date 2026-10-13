@@ -15,6 +15,8 @@ This repository builds four independent Nix container images: the existing Tails
 
 The CLI outputs are standard flake packages that consuming `devenv` configurations can select independently of the OCI images. The Headroom package runs `tests/test_headroom_caveman_safeguard.py` during its Nix check: it verifies the bare and MCP-prefixed tool names are excluded from both lossy and verbatim transforms, recovery results stay byte-exact for OpenAI and Anthropic message shapes, and unrelated retrieval tools are not blanket-excluded.
 
+The separate `caveman-cli` package (x86_64 Linux) ships the official `@caveman-ai/cli` 4.0.1 via Bun with matching `bin-v4.0.1` runtime helpers. It is included in this repo's `devenv shell` as `caveman` and `cave`; the wrapper defaults `DO_NOT_TRACK=1`. This developer CLI is distinct from the `caveman` v2.1.0 proxy/MCP package used by the service image.
+
 ### Runtime requirements
 
 - **Engram:** provide `ENGRAM_DATABASE_URL`, `ENGRAM_JWT_SECRET`, and `ENGRAM_CLOUD_ALLOWED_PROJECTS` at runtime. The image binds to `0.0.0.0:7437`; it does not bundle PostgreSQL or migrate existing data.
