@@ -1,5 +1,5 @@
 {
-  description = "Nix-built service images for the Tailnet/Caddy gateway, Engram, Headroom, and Caveman";
+  description = "Nix-built Tailscale + Caddy tailnet gateway image";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
@@ -90,7 +90,7 @@
             Labels = {
               "org.opencontainers.image.title" = "Tailnet Gateway";
               "org.opencontainers.image.description" = "Tailscale network sidecar with Caddy reverse proxy and Cloudflare DNS support";
-              "org.opencontainers.image.source" = "https://github.com/RogerNavelsaker/agent-services";
+              "org.opencontainers.image.source" = "https://github.com/RogerNavelsaker/tailnet-gateway";
               "org.opencontainers.image.vendor" = "Roger Navelsaker";
               "org.opencontainers.image.revision" = if self ? dirtyRev then self.dirtyRev else self.rev or "unknown";
             };
@@ -121,11 +121,6 @@
           '';
         };
 
-        serviceImages =
-          if pkgs.stdenv.hostPlatform.isLinux then
-            import ./nix/services.nix { inherit pkgs self; }
-          else
-            { packages = { }; images = { }; };
 
       in {
         packages = {
@@ -134,7 +129,7 @@
           caddy = caddyWithCloudflare;
           tailscale = pkgs.tailscale;
           image = baseImage;
-        } // serviceImages.packages // serviceImages.images;
+        };
 
         apps = {
           default = {
