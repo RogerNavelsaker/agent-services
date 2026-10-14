@@ -49,7 +49,6 @@ stdenvNoCC.mkDerivation {
     runHook preInstall
     mkdir -p "$out/share/caveman-cli" "$out/bin"
     tar -xzf ${npmSource} -C "$out/share/caveman-cli" --strip-components=1
-    ${lib.concatStringsSep "\n" (lib.mapAttrsToList (name: _: "ln -s ${runtime}/bin/${name} \"$out/bin/${name}\"") runtimeAssets)}
     makeWrapper ${bun}/bin/bun "$out/bin/caveman" \
       --add-flags "$out/share/caveman-cli/dist/index.js" \
       --set-default DO_NOT_TRACK 1 \
