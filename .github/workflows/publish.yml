@@ -1,8 +1,7 @@
-name: Build and publish service images
+name: Build and publish gateway image
 
 on:
   push:
-    branches: [main]
     tags: ["v*", "!v*-*"]
   workflow_dispatch:
 
@@ -11,7 +10,7 @@ permissions:
   packages: write
 
 concurrency:
-  group: agent-services-${{ github.ref }}
+  group: tailnet-gateway-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -28,18 +27,6 @@ jobs:
               ghcr.io/rogernavelsaker/tailnet-gateway
               ghcr.io/rogernavelsaker/ts-caddy-gateway
               ghcr.io/rogernavelsaker/agent-services-gateway
-          - package: engram-image
-            local_image: agent-services-engram
-            title: Engram Cloud
-            images: ghcr.io/rogernavelsaker/agent-services-engram
-          - package: headroom-image
-            local_image: agent-services-headroom
-            title: Headroom Proxy
-            images: ghcr.io/rogernavelsaker/agent-services-headroom
-          - package: caveman-image
-            local_image: agent-services-caveman
-            title: Caveman Proxy
-            images: ghcr.io/rogernavelsaker/agent-services-caveman
 
     steps:
       - name: Check out source
@@ -56,7 +43,7 @@ jobs:
       - name: Build image
         env:
           PACKAGE: ${{ matrix.package }}
-        run: nix build ".#$PACKAGE" --out-link /tmp/agent-service-image
+        run: nix build ".#$PACKAGE" --out-link /tmp/tailnet-gateway-image
 
       - name: Validate gateway entrypoint
         if: matrix.package == 'image'
@@ -69,7 +56,7 @@ jobs:
           LOCAL_IMAGE: ${{ matrix.local_image }}
           IMAGE_TITLE: ${{ matrix.title }}
         run: |
-          docker load --input /tmp/agent-service-image
+          docker load --input /tmp/tailnet-gateway-image
           test "$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.title" }}' "$LOCAL_IMAGE:latest")" = "$IMAGE_TITLE"
 
       - name: Generate image tags
